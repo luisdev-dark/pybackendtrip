@@ -1,19 +1,34 @@
--- Datos de prueba para RealGo MVP
-
--- Usuario de prueba (hardcoded passenger)
-INSERT INTO app.users (id, role, full_name, phone_e164, is_active)
-VALUES ('11111111-1111-1111-1111-111111111111', 'passenger', 'Usuario Prueba', '+51999999999', TRUE)
+  'Hoja Redonda',  -13.548331, -76.115268,
+  'Chincha Alta',  -13.409900, -76.132300,
+  600, 'PEN'
+)
 ON CONFLICT (id) DO NOTHING;
 
--- Ruta de ejemplo: Lima Centro a Miraflores
-INSERT INTO app.routes (id, name, origin_name, origin_lat, origin_lon, destination_name, destination_lat, destination_lon, base_price_cents, currency, is_active)
-VALUES ('22222222-2222-2222-2222-222222222222', 'Lima Centro - Miraflores', 'Plaza San Martin', -12.0508, -77.0342, 'Parque Kennedy', -12.1191, -77.0311, 500, 'PEN', TRUE)
+-- Ruta 2: Chincha Alta -> Hoja Redonda
+INSERT INTO app.routes (
+  id, name,
+  origin_name, origin_lat, origin_lon,
+  destination_name, destination_lat, destination_lon,
+  base_price_cents, currency
+) VALUES (
+  '33333333-3333-3333-3333-333333333333',
+  'Chincha Alta → Hoja Redonda',
+  'Chincha Alta',  -13.409900, -76.132300,
+  'Hoja Redonda',  -13.548331, -76.115268,
+  600, 'PEN'
+)
 ON CONFLICT (id) DO NOTHING;
 
--- Paradas de la ruta
-INSERT INTO app.route_stops (id, route_id, stop_order, name, lat, lon, is_active) VALUES
-('33333333-3333-3333-3333-333333333331', '22222222-2222-2222-2222-222222222222', 1, 'Plaza San Martin', -12.0508, -77.0342, TRUE),
-('33333333-3333-3333-3333-333333333332', '22222222-2222-2222-2222-222222222222', 2, 'Av. Arequipa / Javier Prado', -12.0889, -77.0356, TRUE),
-('33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 3, 'Ovalo Gutierrez', -12.1078, -77.0328, TRUE),
-('33333333-3333-3333-3333-333333333334', '22222222-2222-2222-2222-222222222222', 4, 'Parque Kennedy', -12.1191, -77.0311, TRUE)
+-- Anexos / paradas para Ruta 1
+INSERT INTO app.route_stops (id, route_id, stop_order, name, lat, lon) VALUES
+  ('44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-222222222222', 1, 'Hoja Redonda (Inicio)',      -13.548331, -76.115268),
+  ('55555555-5555-5555-5555-555555555555', '22222222-2222-2222-2222-222222222222', 2, 'Paradero Intermedio',        -13.479000, -76.123800),
+  ('66666666-6666-6666-6666-666666666666', '22222222-2222-2222-2222-222222222222', 3, 'Chincha Alta (Llegada)',     -13.409900, -76.132300)
+ON CONFLICT (id) DO NOTHING;
+
+-- Anexos / paradas para Ruta 2 (mismo recorrido al revés)
+INSERT INTO app.route_stops (id, route_id, stop_order, name, lat, lon) VALUES
+  ('77777777-7777-7777-7777-777777777777', '33333333-3333-3333-3333-333333333333', 1, 'Chincha Alta (Inicio)',      -13.409900, -76.132300),
+  ('88888888-8888-8888-8888-888888888888', '33333333-3333-3333-3333-333333333333', 2, 'Paradero Intermedio',        -13.479000, -76.123800),
+  ('99999999-9999-9999-9999-999999999999', '33333333-3333-3333-3333-333333333333', 3, 'Hoja Redonda (Llegada)',     -13.548331, -76.115268)
 ON CONFLICT (id) DO NOTHING;
