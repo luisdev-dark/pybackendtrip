@@ -139,9 +139,9 @@ VALID_PAYMENT_METHODS = {"cash", "yape", "plin"}
 # ============================================
 # Endpoints
 # ============================================
-@app.get("/", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 async def root():
-    """Redirige a la documentación."""
+    """Endpoint raíz - compatible con healthchecks."""
     return {"message": "RealGo MVP API", "docs": "/docs"}
 
 
