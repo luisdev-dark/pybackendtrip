@@ -1,18 +1,28 @@
 """
-RealGo MVP - Autenticación JWT con JWKS (Better Auth)
+RealGo MVP - Autenticación JWT con JWKS (Neon Auth)
 
 Este módulo maneja la verificación de tokens JWT usando JWKS.
+Soporta EdDSA/Ed25519 (usado por Neon Auth) y RS256.
 """
 
 import os
+import base64
 from typing import Optional
-from functools import lru_cache
 
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
+from jose.constants import ALGORITHMS
 from pydantic import BaseModel
+
+# Para Ed25519
+try:
+    from nacl.signing import VerifyKey
+    from nacl.encoding import RawEncoder
+    NACL_AVAILABLE = True
+except ImportError:
+    NACL_AVAILABLE = False
 
 
 # Security scheme
@@ -28,31 +38,46 @@ class CurrentUser(BaseModel):
     claims: dict = {}
 
 
+def get_jwks_url() -> Optional[str]:
+    """Obtiene la URL del JWKS desde variables de entorno."""
+    # Soporta múltiples nombres de variable
+    return (
+        os.getenv("JWKS_URL") or 
+        os.getenv("NEON_AUTH_JWKS_URL") or 
+        os.getenv("BETTER_AUTH_JWKS_URL")
+    )
+
+
 class JWKSManager:
     """Gestiona la obtención y cache del JWKS."""
     
     def __init__(self):
         self._jwks_cache: Optional[dict] = None
-        self._jwks_url = os.getenv("BETTER_AUTH_JWKS_URL")
+        self._jwks_url: Optional[str] = None
     
     @property
     def jwks_url(self) -> Optional[str]:
-        """Obtiene la URL del JWKS (puede cambiar en runtime)."""
+        """Obtiene la URL del JWKS (lee de env cada vez por si cambia)."""
         if self._jwks_url is None:
-            self._jwks_url = os.getenv("BETTER_AUTH_JWKS_URL")
+            self._jwks_url = get_jwks_url()
         return self._jwks_url
+    
+    def refresh_url(self):
+        """Fuerza re-lectura de la URL del JWKS."""
+        self._jwks_url = get_jwks_url()
     
     @property
     def is_configured(self) -> bool:
         """Verifica si el JWKS está configurado."""
-        return self.jwks_url is not None and len(self.jwks_url) > 0
+        url = self.jwks_url
+        return url is not None and len(url) > 0
     
     def get_jwks(self) -> dict:
         """Obtiene el JWKS (con cache)."""
         if not self.is_configured:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Auth service not configured"
+                detail="Auth service not configured (JWKS_URL not set)"
             )
         
         if self._jwks_cache is None:
@@ -104,6 +129,65 @@ class JWKSManager:
         )
 
 
+def decode_ed25519_token(token: str, jwk: dict) -> dict:
+    """
+    Decodifica un token JWT firmado con Ed25519.
+    python-jose no soporta EdDSA nativamente, así que lo hacemos manualmente.
+    """
+    if not NACL_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="PyNaCl not installed - Ed25519 not supported"
+        )
+    
+    try:
+        # Separar las partes del JWT
+        parts = token.split(".")
+        if len(parts) != 3:
+            raise ValueError("Invalid JWT format")
+        
+        header_b64, payload_b64, signature_b64 = parts
+        
+        # Decodificar la clave pública Ed25519
+        x = jwk.get("x")
+        if not x:
+            raise ValueError("JWK missing 'x' parameter")
+        
+        # Añadir padding si es necesario
+        padding = 4 - len(x) % 4
+        if padding != 4:
+            x += "=" * padding
+        
+        public_key_bytes = base64.urlsafe_b64decode(x)
+        verify_key = VerifyKey(public_key_bytes)
+        
+        # Decodificar la firma
+        sig_padding = 4 - len(signature_b64) % 4
+        if sig_padding != 4:
+            signature_b64 += "=" * sig_padding
+        signature = base64.urlsafe_b64decode(signature_b64)
+        
+        # Verificar la firma
+        message = f"{header_b64}.{payload_b64}".encode()
+        verify_key.verify(message, signature)
+        
+        # Decodificar el payload
+        payload_padding = 4 - len(payload_b64) % 4
+        if payload_padding != 4:
+            payload_b64 += "=" * payload_padding
+        
+        import json
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        
+        return payload
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Ed25519 token: {str(e)}"
+        )
+
+
 # Instancia global del manager
 jwks_manager = JWKSManager()
 
@@ -135,21 +219,35 @@ async def get_current_user(
     
     # Obtener clave de firma
     key = jwks_manager.get_signing_key(token)
+    alg = key.get("alg", "RS256")
     
     try:
-        payload = jwt.decode(
-            token,
-            key,
-            algorithms=[key.get("alg", "RS256")],
-            options={
-                "verify_aud": False,  # Configurar según necesidad
-                "verify_iss": False,  # Configurar según necesidad
-            },
-        )
+        # EdDSA (Ed25519) - usado por Neon Auth
+        if alg == "EdDSA":
+            payload = decode_ed25519_token(token, key)
+        else:
+            # RS256, ES256, etc - usar python-jose
+            payload = jwt.decode(
+                token,
+                key,
+                algorithms=[alg],
+                options={
+                    "verify_aud": False,
+                    "verify_iss": False,
+                },
+            )
+    except HTTPException:
+        raise
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or expired token: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token validation failed: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
