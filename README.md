@@ -1,172 +1,279 @@
-# RealGo MVP - Backend FastAPI
+# 🚗 RealGo MVP - Backend API
 
-## 🚀 Descripción
-API REST para gestión de rutas y viajes de transporte. Backend construido con FastAPI y asyncpg conectado a NeonDB (PostgreSQL).
+<div align="center">
+
+![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green?style=for-the-badge&logo=fastapi)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-NeonDB-336791?style=for-the-badge&logo=postgresql)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+
+**API REST para gestión de rutas y viajes de transporte**
+
+[📖 Documentación](#-documentación-de-la-api) • [🚀 Deploy](#-despliegue-en-la-nube) • [🛠️ Desarrollo](#️-desarrollo-local)
+
+</div>
+
+---
+
+## 📋 Descripción
+
+RealGo MVP es un backend construido con **FastAPI** y **asyncpg** que proporciona una API REST para gestionar rutas de transporte y viajes de pasajeros. Está diseñado para conectar pasajeros con rutas de transporte público o privado.
+
+### ✨ Características
+
+- ⚡ **Alto rendimiento** - FastAPI + asyncpg (conexiones asíncronas)
+- 🔐 **Validación robusta** - Pydantic para validación de datos
+- 📊 **Auto-documentación** - Swagger UI y ReDoc integrados
+- 🐘 **PostgreSQL** - Base de datos en NeonDB (serverless)
+- 🐳 **Docker Ready** - Listo para contenedores
+- ☁️ **Cloud Ready** - Configurado para Railway, Render y más
+
+---
 
 ## 🛠️ Stack Tecnológico
-- **Framework**: FastAPI 0.128+
-- **Driver DB**: asyncpg (directo, sin ORM)
-- **Base de datos**: PostgreSQL (NeonDB)
-- **Validación**: Pydantic
-- **Servidor**: Uvicorn
+
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| Python | 3.11+ | Runtime |
+| FastAPI | 0.128+ | Framework Web |
+| asyncpg | 0.31+ | Driver PostgreSQL (async) |
+| Pydantic | 2.0+ | Validación de datos |
+| Uvicorn | 0.40+ | Servidor ASGI |
+| PostgreSQL | 15+ | Base de datos (NeonDB) |
+
+---
 
 ## 📁 Estructura del Proyecto
+
 ```
-├── main.py                  # API completa (endpoints + schemas)
+realgo-mvp/
+├── main.py                 # API completa (endpoints + schemas)
 ├── sql/
-│   ├── schema.sql           # Esquema SQL de la base de datos
-│   └── seed.sql             # Datos de prueba
-├── .env                     # Variables de entorno (DATABASE_URL)
-├── pyproject.toml           # Dependencias Python
-├── test_db_connection.py    # Script para probar conexión a BD
-├── check_and_seed.py        # Script para verificar y cargar datos
+│   ├── schema.sql          # Esquema SQL de la base de datos
+│   └── seed.sql            # Datos de prueba
+├── Dockerfile              # Configuración Docker
+├── Procfile                # Para Railway/Render/Heroku
+├── render.yaml             # Blueprint para Render.com
+├── railway.json            # Configuración Railway
+├── requirements.txt        # Dependencias Python
+├── pyproject.toml          # Metadatos del proyecto
+├── .env.example            # Template de variables de entorno
+├── check_and_seed.py       # Script para verificar/cargar datos
+├── test_db_connection.py   # Script para probar conexión
 └── README.md               # Este archivo
 ```
 
-## 🔧 Instalación
-
-### Prerrequisitos
-- Python 3.11+
-- pip o uv
-
-### Pasos de instalación
-
-1. **Clonar el repositorio**
-```bash
-git clone <repo-url>
-cd FastAPI-Confirma
-```
-
-2. **Instalar dependencias**
-```bash
-pip install -r requirements.txt
-# o usando uv
-uv sync
-```
-
-3. **Configurar variables de entorno**
-Crear archivo `.env` con:
-```
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
-```
-
-4. **Verificar conexión a la base de datos**
-```bash
-python test_db_connection.py
-```
-
-5. **Verificar datos de prueba**
-```bash
-python check_and_seed.py
-```
-
-## 🚀 Ejecutar el servidor
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port 5000 --reload
-```
-
-El servidor estará disponible en: `http://localhost:5000`
-
-## 📚 Documentación de la API
-
-Una vez iniciado el servidor, puedes acceder a:
-
-- **Swagger UI**: `http://localhost:5000/docs`
-- **ReDoc**: `http://localhost:5000/redoc`
+---
 
 ## 🔌 Endpoints API
 
 ### Health Check
-- `GET /health` - Verifica que el servicio esté funcionando
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/health` | Verifica estado del servicio |
 
 ### Rutas
-- `GET /routes` - Lista todas las rutas activas
-- `GET /routes/{route_id}` - Detalle de ruta con paradas
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/routes` | Lista todas las rutas activas |
+| `GET` | `/routes/{route_id}` | Detalle de ruta con paradas |
 
 ### Viajes
-- `POST /trips` - Crear un nuevo viaje (status 201)
-- `GET /trips/{trip_id}` - Obtener detalle de un viaje
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/trips` | Crear un nuevo viaje |
+| `GET` | `/trips/{trip_id}` | Obtener detalle de un viaje |
 
-## 📊 Base de Datos (schema `app`)
+---
 
-### Tablas
-- **users**: Usuarios (passenger, driver, admin)
-- **routes**: Rutas con origen/destino y precio base
-- **route_stops**: Paradas de cada ruta
-- **trips**: Viajes solicitados con timestamps
+## 🛠️ Desarrollo Local
 
-### Tipos de Enum
-- `app.user_role`: passenger, driver, admin
-- `app.trip_status`: requested, confirmed, started, finished, cancelled
-- `app.payment_method`: cash, yape, plin
+### Prerrequisitos
+- Python 3.11+
+- pip o uv
+- PostgreSQL (o cuenta en [NeonDB](https://neon.tech))
 
-## 🧪 Datos de Prueba
+### Instalación
 
-El proyecto incluye datos de prueba en `sql/seed.sql`:
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/tu-usuario/realgo-mvp.git
+cd realgo-mvp
 
-- **Usuario hardcoded**: `11111111-1111-1111-1111-111111111111`
-- **Rutas disponibles**:
-  - Hoja Redonda → Chincha Alta
-  - Chincha Alta → Hoja Redonda
-- **Paradas**: 6 paradas distribuidas en las rutas
+# 2. Crear entorno virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# o en Windows:
+.\venv\Scripts\activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+
+# 4. Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tu DATABASE_URL
+
+# 5. Verificar conexión a BD
+python test_db_connection.py
+
+# 6. Cargar datos de prueba (si es necesario)
+python check_and_seed.py
+
+# 7. Ejecutar servidor
+uvicorn main:app --reload --port 8000
+```
+
+El servidor estará disponible en: `http://localhost:8000`
+
+---
+
+## 📖 Documentación de la API
+
+Una vez iniciado el servidor, accede a:
+
+| Interfaz | URL |
+|----------|-----|
+| **Swagger UI** | `http://localhost:8000/docs` |
+| **ReDoc** | `http://localhost:8000/redoc` |
+| **OpenAPI JSON** | `http://localhost:8000/openapi.json` |
+
+---
+
+## 🚀 Despliegue en la Nube
+
+### Railway (Recomendado)
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+
+1. Conecta tu repositorio de GitHub a Railway
+2. Añade la variable de entorno `DATABASE_URL`
+3. Railway detectará automáticamente el `Procfile`
+4. ¡Listo! Tu API estará en línea
+
+### Render
+
+1. Conecta tu repositorio a [Render.com](https://render.com)
+2. Render detectará `render.yaml` automáticamente
+3. Añade `DATABASE_URL` en el dashboard
+4. Deploy automático configurado
+
+### Docker
+
+```bash
+# Construir imagen
+docker build -t realgo-mvp .
+
+# Ejecutar contenedor
+docker run -d -p 8000:8000 \
+  -e DATABASE_URL="tu_database_url" \
+  realgo-mvp
+```
+
+---
+
+## 📊 Base de Datos
+
+### Esquema (`app`)
+
+| Tabla | Descripción |
+|-------|-------------|
+| `users` | Usuarios (pasajeros) |
+| `routes` | Rutas con origen/destino y precio |
+| `route_stops` | Paradas de cada ruta |
+| `trips` | Viajes solicitados |
+
+### Tipos Enum
+
+- `app.trip_status`: `requested`, `started`, `finished`, `cancelled`
+- `app.payment_method`: `cash`, `yape`, `plin`
+
+### Configurar Base de Datos
+
+```bash
+# Ejecutar schema
+psql $DATABASE_URL -f sql/schema.sql
+
+# Cargar datos de prueba
+psql $DATABASE_URL -f sql/seed.sql
+```
+
+---
+
+## 🧪 Ejemplos de Uso
+
+### Obtener todas las rutas
+
+```bash
+curl http://localhost:8000/routes
+```
+
+### Obtener detalle de una ruta
+
+```bash
+curl http://localhost:8000/routes/22222222-2222-2222-2222-222222222222
+```
+
+### Crear un viaje
+
+```bash
+curl -X POST http://localhost:8000/trips \
+  -H "Content-Type: application/json" \
+  -d '{
+    "route_id": "22222222-2222-2222-2222-222222222222",
+    "pickup_stop_id": "44444444-4444-4444-4444-444444444444",
+    "dropoff_stop_id": "66666666-6666-6666-6666-666666666666",
+    "payment_method": "yape"
+  }'
+```
+
+---
+
+## 🔒 Variables de Entorno
+
+| Variable | Requerida | Descripción |
+|----------|:---------:|-------------|
+| `DATABASE_URL` | ✅ | URL de conexión PostgreSQL |
+
+Ejemplo:
+```
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+```
+
+---
 
 ## ✅ Validaciones en POST /trips
 
-- `payment_method` debe ser: cash, yape, o plin
+- `payment_method` debe ser: `cash`, `yape`, o `plin`
 - `pickup_stop_id` y `dropoff_stop_id` deben ser diferentes
 - Los stops deben pertenecer a la ruta especificada
 - La ruta debe existir y estar activa
 
-## 📝 Ejemplos de Uso
-
-### Obtener todas las rutas
-```bash
-curl http://localhost:5000/routes
-```
-
-### Obtener detalle de una ruta
-```bash
-curl http://localhost:5000/routes/22222222-2222-2222-2222-222222222222
-```
-
-### Crear un viaje
-```bash
-curl -X POST http://localhost:5000/trips \
-  -H "Content-Type: application/json" \
-  -d '{
-    "route_id": "22222222-2222-2222-2222-222222222222",
-    "pickup_stop_id": "33333333-3333-3333-3333-333333333331",
-    "dropoff_stop_id": "33333333-3333-3333-3333-333333333332",
-    "payment_method": "cash"
-  }'
-```
-
-### Obtener detalle de un viaje
-```bash
-curl http://localhost:5000/trips/{trip_id}
-```
-
-## 🔒 Variables de Entorno
-
-- `DATABASE_URL` - URL de conexión a PostgreSQL (requerido)
+---
 
 ## 🐛 Troubleshooting
 
-### Error: "DATABASE_URL no está configurada"
-Verifica que el archivo `.env` existe y tiene la URL correcta.
+| Error | Solución |
+|-------|----------|
+| `DATABASE_URL no está configurada` | Verifica que `.env` existe y tiene la URL |
+| Error de conexión a BD | Ejecuta `python test_db_connection.py` |
+| No hay rutas en `/routes` | Ejecuta `python check_and_seed.py` |
 
-### Error de conexión a la base de datos
-Ejecuta `python test_db_connection.py` para diagnosticar el problema.
-
-### El servidor no inicia
-Asegúrate de que todas las dependencias estén instaladas:
-```bash
-pip install -r requirements.txt
-```
+---
 
 ## 📄 Licencia
-Este proyecto es parte de RealGo MVP.
 
-## 👥 Autores
-- RealGo Team
+Este proyecto está bajo la licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 👥 Equipo
+
+**RealGo Team**
+
+---
+
+<div align="center">
+
+Hecho con ❤️ para facilitar el transporte
+
+</div>

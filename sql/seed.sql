@@ -1,3 +1,25 @@
+-- ==============================================
+-- RealGo MVP - Datos de Prueba (Seed)
+-- ==============================================
+
+-- Usuario de prueba (hardcoded para MVP)
+INSERT INTO app.users (id, full_name, phone_e164)
+VALUES (
+  '11111111-1111-1111-1111-111111111111',
+  'Usuario Demo',
+  '+51999888777'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Ruta 1: Hoja Redonda -> Chincha Alta
+INSERT INTO app.routes (
+  id, name,
+  origin_name, origin_lat, origin_lon,
+  destination_name, destination_lat, destination_lon,
+  base_price_cents, currency
+) VALUES (
+  '22222222-2222-2222-2222-222222222222',
+  'Hoja Redonda → Chincha Alta',
   'Hoja Redonda',  -13.548331, -76.115268,
   'Chincha Alta',  -13.409900, -76.132300,
   600, 'PEN'

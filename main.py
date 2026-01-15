@@ -1,5 +1,12 @@
+"""
+RealGo MVP - API REST para gestión de rutas y viajes de transporte.
+
+Este módulo contiene la API completa construida con FastAPI y asyncpg.
+"""
+
 import os
 import uuid
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
 import asyncpg
@@ -15,11 +22,35 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada")
 
-app = FastAPI(title="RealGo MVP", version="0.2.0")
 
+# ============================================
+# Gestión del ciclo de vida de la aplicación
+# ============================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gestiona el ciclo de vida de la aplicación (startup/shutdown)."""
+    global pool
+    # Startup
+    pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
+    yield
+    # Shutdown
+    if pool:
+        await pool.close()
+
+
+app = FastAPI(
+    title="RealGo MVP",
+    description="API REST para gestión de rutas y viajes de transporte",
+    version="0.2.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # En producción, especificar dominios permitidos
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,27 +59,22 @@ app.add_middleware(
 pool: asyncpg.Pool | None = None
 
 
-@app.on_event("startup")
-async def startup() -> None:
-    global pool
-    pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
-
-
-@app.on_event("shutdown")
-async def shutdown() -> None:
-    global pool
-    if pool:
-        await pool.close()
-
-
+# ============================================
+# Dependencias
+# ============================================
 async def get_conn() -> asyncpg.Connection:
+    """Obtiene una conexión del pool."""
     if pool is None:
         raise RuntimeError("DB pool no inicializado")
     async with pool.acquire() as conn:
         yield conn
 
 
+# ============================================
+# Modelos Pydantic
+# ============================================
 class RouteSummary(BaseModel):
+    """Resumen de una ruta."""
     id: uuid.UUID
     name: str
     origin_name: str
@@ -58,17 +84,20 @@ class RouteSummary(BaseModel):
 
 
 class RouteStopOut(BaseModel):
+    """Detalle de una parada de ruta."""
     id: uuid.UUID
     name: str
     stop_order: int
 
 
 class RouteDetail(BaseModel):
+    """Detalle completo de una ruta con sus paradas."""
     route: RouteSummary
     stops: List[RouteStopOut]
 
 
 class TripCreate(BaseModel):
+    """Payload para crear un nuevo viaje."""
     route_id: uuid.UUID = Field(..., description="ID de la ruta")
     pickup_stop_id: Optional[uuid.UUID] = Field(
         None, description="Paradero de subida (puede ser null)"
@@ -80,6 +109,7 @@ class TripCreate(BaseModel):
 
 
 class TripOut(BaseModel):
+    """Respuesta de un viaje."""
     id: uuid.UUID
     route_id: uuid.UUID
     passenger_id: uuid.UUID
@@ -92,17 +122,38 @@ class TripOut(BaseModel):
     created_at: str
 
 
+class HealthResponse(BaseModel):
+    """Respuesta del health check."""
+    status: str
+    service: str
+    version: str
+
+
+# ============================================
+# Constantes
+# ============================================
 HARDCODED_PASSENGER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 VALID_PAYMENT_METHODS = {"cash", "yape", "plin"}
 
 
-@app.get("/health")
-async def health() -> dict:
-    return {"status": "ok", "service": "realgo-mvp"}
+# ============================================
+# Endpoints
+# ============================================
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirige a la documentación."""
+    return {"message": "RealGo MVP API", "docs": "/docs"}
 
 
-@app.get("/routes", response_model=List[RouteSummary])
+@app.get("/health", response_model=HealthResponse, tags=["Health"])
+async def health() -> HealthResponse:
+    """Verifica que el servicio esté funcionando."""
+    return HealthResponse(status="ok", service="realgo-mvp", version="0.2.0")
+
+
+@app.get("/routes", response_model=List[RouteSummary], tags=["Routes"])
 async def list_routes(conn: asyncpg.Connection = Depends(get_conn)) -> List[RouteSummary]:
+    """Lista todas las rutas activas."""
     rows = await conn.fetch(
         """
         SELECT
@@ -130,11 +181,12 @@ async def list_routes(conn: asyncpg.Connection = Depends(get_conn)) -> List[Rout
     ]
 
 
-@app.get("/routes/{route_id}", response_model=RouteDetail)
+@app.get("/routes/{route_id}", response_model=RouteDetail, tags=["Routes"])
 async def get_route_detail(
     route_id: uuid.UUID,
     conn: asyncpg.Connection = Depends(get_conn),
 ) -> RouteDetail:
+    """Obtiene el detalle de una ruta con sus paradas."""
     route_row = await conn.fetchrow(
         """
         SELECT
@@ -182,17 +234,20 @@ async def get_route_detail(
     )
 
 
-@app.post("/trips", response_model=TripOut, status_code=status.HTTP_201_CREATED)
+@app.post("/trips", response_model=TripOut, status_code=status.HTTP_201_CREATED, tags=["Trips"])
 async def create_trip(
     payload: TripCreate,
     conn: asyncpg.Connection = Depends(get_conn),
 ) -> TripOut:
+    """Crea un nuevo viaje."""
+    # Validar método de pago
     if payload.payment_method not in VALID_PAYMENT_METHODS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"payment_method inválido. Usa uno de: {', '.join(VALID_PAYMENT_METHODS)}",
         )
 
+    # Validar que los stops sean diferentes
     if (
         payload.pickup_stop_id
         and payload.dropoff_stop_id
@@ -203,6 +258,7 @@ async def create_trip(
             detail="pickup_stop_id y dropoff_stop_id deben ser diferentes",
         )
 
+    # Verificar que la ruta existe
     route_row = await conn.fetchrow(
         "SELECT id, base_price_cents, currency FROM app.routes WHERE id = $1 AND is_active = TRUE;",
         payload.route_id,
@@ -210,6 +266,7 @@ async def create_trip(
     if not route_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
 
+    # Validar que los stops pertenecen a la ruta
     for stop_id in [payload.pickup_stop_id, payload.dropoff_stop_id]:
         if stop_id:
             owns = await conn.fetchval(
@@ -264,11 +321,12 @@ async def create_trip(
     )
 
 
-@app.get("/trips/{trip_id}", response_model=TripOut)
+@app.get("/trips/{trip_id}", response_model=TripOut, tags=["Trips"])
 async def get_trip(
     trip_id: uuid.UUID,
     conn: asyncpg.Connection = Depends(get_conn),
 ) -> TripOut:
+    """Obtiene el detalle de un viaje."""
     row = await conn.fetchrow(
         """
         SELECT
@@ -296,3 +354,9 @@ async def get_trip(
         currency=row["currency"],
         created_at=row["created_at"].isoformat(),
     )
+
+
+# Para ejecución directa (desarrollo local)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

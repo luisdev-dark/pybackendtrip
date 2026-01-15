@@ -1,0 +1,21 @@
+# ==============================================
+# RealGo MVP - Render.com Blueprint
+# ==============================================
+# Para desplegar: conecta tu repo de GitHub a Render.com
+# Render detectará este archivo automáticamente
+
+services:
+  - type: web
+    name: realgo-api
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: DATABASE_URL
+        sync: false  # Debe configurarse manualmente en el dashboard
+    healthCheckPath: /health
+    autoDeploy: true
