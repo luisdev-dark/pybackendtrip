@@ -1,9 +1,10 @@
-modules = ["python-3.11"]
+modules = ["python-3.11", "postgresql-16"]
 [agent]
 expertMode = true
 
 [nix]
 channel = "stable-25_05"
+packages = ["postgresql"]
 
 [workflows]
 runButton = "Project"
