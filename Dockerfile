@@ -26,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código de la aplicación
 COPY main.py .
+COPY auth.py .
 COPY sql/ ./sql/
 
 # Exponer puerto
