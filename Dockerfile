@@ -27,9 +27,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código de la aplicación
 COPY main.py .
 COPY sql/ ./sql/
-COPY check_and_seed.py .
-COPY test_db_connection.py .
-COPY setup_database.py .
 
 # Exponer puerto
 EXPOSE 8000
