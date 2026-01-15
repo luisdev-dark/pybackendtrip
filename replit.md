@@ -1,41 +1,20 @@
 # RealGo MVP - Backend FastAPI
 
 ## Overview
-API REST para gestión de rutas y viajes. Backend construido con FastAPI, SQLAlchemy async y PostgreSQL.
+API REST para gestión de rutas y viajes. Backend construido con FastAPI y asyncpg directo a PostgreSQL.
 
 ## Stack Tecnológico
 - **Framework**: FastAPI
-- **ORM**: SQLAlchemy 2.x (async)
+- **Driver DB**: asyncpg (directo, sin ORM)
 - **Base de datos**: PostgreSQL (Replit)
-- **Driver**: asyncpg
 - **Validación**: Pydantic
 
 ## Estructura del Proyecto
 ```
-├── app/
-│   ├── main.py              # Punto de entrada FastAPI
-│   ├── core/
-│   │   ├── config.py        # Configuración (env vars)
-│   │   └── db.py            # Conexión a DB async
-│   ├── models/
-│   │   ├── base.py          # Base del ORM
-│   │   ├── user.py          # Modelo User
-│   │   ├── route.py         # Modelo Route + RouteStop
-│   │   └── trip.py          # Modelo Trip
-│   ├── schemas/
-│   │   ├── user.py          # Pydantic schemas
-│   │   ├── route.py
-│   │   └── trip.py
-│   └── api/
-│       ├── deps.py          # Dependencias (get_db)
-│       └── routes/
-│           ├── health.py    # /health
-│           ├── routes.py    # /routes
-│           └── trips.py     # /trips
+├── main.py                  # API completa (endpoints + schemas)
 ├── sql/
 │   ├── schema.sql           # Esquema SQL
 │   └── seed.sql             # Datos de prueba
-├── main.py                  # Entry point para uvicorn
 └── pyproject.toml           # Dependencias Python
 ```
 
@@ -43,14 +22,14 @@ API REST para gestión de rutas y viajes. Backend construido con FastAPI, SQLAlc
 - `GET /health` - Health check
 - `GET /routes` - Lista todas las rutas activas
 - `GET /routes/{route_id}` - Detalle de ruta con paradas
-- `POST /trips` - Crear un nuevo viaje
+- `POST /trips` - Crear un nuevo viaje (status 201)
 - `GET /trips/{trip_id}` - Obtener detalle de un viaje
 
-## Modelos de Base de Datos
+## Base de Datos (schema app)
 - **users**: Usuarios (passenger, driver, admin)
-- **routes**: Rutas con origen/destino
+- **routes**: Rutas con origen/destino y precio base
 - **route_stops**: Paradas de cada ruta
-- **trips**: Viajes solicitados
+- **trips**: Viajes solicitados con timestamps
 
 ## Variables de Entorno
 - `DATABASE_URL` - URL de conexión a PostgreSQL (automático en Replit)
@@ -62,6 +41,12 @@ uvicorn main:app --host 0.0.0.0 --port 5000 --reload
 ```
 
 ## Datos de Prueba
-- Usuario de prueba: `11111111-1111-1111-1111-111111111111`
+- Usuario hardcoded: `11111111-1111-1111-1111-111111111111`
 - Ruta Lima Centro - Miraflores: `22222222-2222-2222-2222-222222222222`
-- 4 paradas en la ruta
+- 4 paradas en la ruta (Plaza San Martin → Parque Kennedy)
+
+## Validaciones en POST /trips
+- `payment_method` debe ser: cash, yape, o plin
+- `pickup_stop_id` y `dropoff_stop_id` deben ser diferentes
+- Los stops deben pertenecer a la ruta especificada
+- La ruta debe existir y estar activa

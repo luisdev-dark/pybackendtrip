@@ -1,3 +1,7 @@
+Backend en Python (FastAPI + asyncpg) – main.py
+
+Crea una carpeta, por ejemplo backend_py/, dentro pon este archivo main.py:
+
 import os
 import uuid
 from typing import List, Optional
@@ -7,20 +11,28 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+# ==============================
+# Configuración
+# ==============================
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada")
 
+# Neon normalmente usa algo tipo:
+# postgresql://user:pass@host/dbname?sslmode=require
+
 app = FastAPI(title="RealGo MVP", version="0.2.0")
 
+# CORS (puedes restringir luego)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # luego pon solo tu dominio / app
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Pool global de conexiones
 pool: asyncpg.Pool | None = None
 
 
@@ -43,6 +55,10 @@ async def get_conn() -> asyncpg.Connection:
     async with pool.acquire() as conn:
         yield conn
 
+
+# ==============================
+# Esquemas Pydantic
+# ==============================
 
 class RouteSummary(BaseModel):
     id: uuid.UUID
@@ -88,9 +104,15 @@ class TripOut(BaseModel):
     created_at: str
 
 
+# Passenger fijo para MVP
 HARDCODED_PASSENGER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
 VALID_PAYMENT_METHODS = {"cash", "yape", "plin"}
 
+
+# ==============================
+# Endpoints
+# ==============================
 
 @app.get("/health")
 async def health() -> dict:
@@ -183,12 +205,14 @@ async def create_trip(
     payload: TripCreate,
     conn: asyncpg.Connection = Depends(get_conn),
 ) -> TripOut:
+    # Validar método de pago
     if payload.payment_method not in VALID_PAYMENT_METHODS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"payment_method inválido. Usa uno de: {', '.join(VALID_PAYMENT_METHODS)}",
         )
 
+    # Validar pickup/dropoff diferentes si ambos existen
     if (
         payload.pickup_stop_id
         and payload.dropoff_stop_id
@@ -199,6 +223,7 @@ async def create_trip(
             detail="pickup_stop_id y dropoff_stop_id deben ser diferentes",
         )
 
+    # Validar ruta existente y obtener precio base
     route_row = await conn.fetchrow(
         "SELECT id, base_price_cents, currency FROM app.routes WHERE id = $1 AND is_active = TRUE;",
         payload.route_id,
@@ -206,6 +231,7 @@ async def create_trip(
     if not route_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
 
+    # (Opcional) validar que los stops pertenecen a esa ruta
     for stop_id in [payload.pickup_stop_id, payload.dropoff_stop_id]:
         if stop_id:
             owns = await conn.fetchval(
@@ -292,3 +318,14 @@ async def get_trip(
         currency=row["currency"],
         created_at=row["created_at"].isoformat(),
     )
+
+requirements.txt (en la misma carpeta del backend)
+fastapi
+uvicorn[standard]
+asyncpg
+python-dotenv
+
+
+Y tu .env:
+
+DATABASE_URL=postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=req

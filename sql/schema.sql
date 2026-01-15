@@ -51,5 +51,6 @@ CREATE TABLE app.trips (
     status app.trip_status NOT NULL DEFAULT 'requested',
     payment_method app.payment_method NOT NULL DEFAULT 'cash',
     price_cents INTEGER NOT NULL DEFAULT 0,
-    currency VARCHAR(3) NOT NULL DEFAULT 'PEN'
+    currency VARCHAR(3) NOT NULL DEFAULT 'PEN',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
